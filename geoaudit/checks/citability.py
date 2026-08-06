@@ -30,17 +30,21 @@ AUTHORITY_HINTS = (".gov", ".edu", ".org", "wikipedia.org", "reuters.", "nature.
                    "who.int", "nih.gov", "statista.", "gartner.", "mckinsey.")
 
 STAT_RE = re.compile(
-    r"(\$\s?\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?\s?%|\b\d{1,3}(?:,\d{3})+\b|\b\d+(?:\.\d+)?\s?(?:x|percent|million|billion|k)\b|\b(?:19|20)\d{2}\b)",
+    r"(\$\s?\d[\d,]*(?:\.\d+)?|\b\d+(?:\.\d+)?\s?%|\b\d{1,3}(?:,\d{3})+\b|\b\d+(?:\.\d+)?\s?(?:x|percent|million|billion|k)\b)",
     re.IGNORECASE,
 )
 QUOTE_RE = re.compile(r"[\u201c\u201d\"]([^\"\u201c\u201d]{25,300})[\u201c\u201d\"]")
+_BARE_4_DIGITS_RE = re.compile(r"\d{4}")
 
 
 def _count_stats(text: str) -> list[str]:
     hits = STAT_RE.findall(text)
     # findall with groups returns tuples of the alternation; flatten
     flat = [h if isinstance(h, str) else next((g for g in h if g), "") for h in hits]
-    return [h for h in flat if h.strip()]
+    flat = [h for h in flat if h.strip()]
+    # A lone 4-digit integer (year, CSS pixel value, etc.) is not evidence of a
+    # statistic \u2014 only keep it if it also carries %, $, a comma, or a scale word.
+    return [h for h in flat if not _BARE_4_DIGITS_RE.fullmatch(h.strip())]
 
 
 def _count_outbound_authority(page: Page, base_domain: str) -> list[str]:
@@ -66,16 +70,31 @@ def _has_faq(page: Page) -> bool:
     return faq_words or q_marks >= 4
 
 
+_DATE_LIKE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
+
+
+def _looks_like_date(value: str | None) -> str | None:
+    # Reject ISO-8601 durations (e.g. "PT0S") and other non-date strings —
+    # only accept values that actually contain a YYYY-MM-DD date component.
+    if value and _DATE_LIKE_RE.search(value):
+        return value
+    return None
+
+
 def _freshness(page: Page) -> str | None:
     if not page.soup:
         return None
     for tag in page.soup.find_all("meta"):
         prop = (tag.get("property") or tag.get("name") or "").lower()
         if prop in ("article:modified_time", "og:updated_time", "datemodified", "last-modified"):
-            return tag.get("content")
+            v = _looks_like_date(tag.get("content"))
+            if v:
+                return v
     t = page.soup.find("time")
-    if t and t.get("datetime"):
-        return t["datetime"]
+    if t:
+        v = _looks_like_date(t.get("datetime"))
+        if v:
+            return v
     return None
 
 
