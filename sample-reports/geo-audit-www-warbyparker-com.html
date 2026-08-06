@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GEO Audit — Warby Parker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c1020; --ink-2:#151a2e; --paper:#ffffff; --panel:#f6f7f9; --panel-2:#eef1f5;
+    --line:#e2e6ee; --text:#1a1d26; --muted:#6b7280; --accent:#4f46e5;
+    --fail:#d92d20; --warn:#dc6803; --pass:#039855; --info:#3b6fd4;
+    --fail-bg:#fef3f2; --warn-bg:#fffaeb; --pass-bg:#ecfdf3; --info-bg:#eff4ff;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--panel);color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-0.01em;line-height:1.15}
+  code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  a{color:var(--accent);text-decoration:none}
+
+  /* Header */
+  header{background:var(--ink);color:#fff;padding:34px 0 30px;
+    background-image:radial-gradient(60% 120% at 100% 0,#1c2545 0,transparent 60%)}
+  .eyebrow{font:600 12px/1 "Space Grotesk";letter-spacing:.16em;text-transform:uppercase;
+    color:#8ea2ff;display:flex;align-items:center;gap:8px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:#8ea2ff;
+    box-shadow:0 0 0 4px rgba(142,162,255,.18)}
+  header h1{font-size:30px;margin:14px 0 4px;color:#fff}
+  header .url{color:#aeb6c8;font-size:14px}
+  .meta{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .meta span{font-size:12px;color:#c7cede;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1);padding:5px 10px;border-radius:999px}
+
+  /* Verdict */
+  .verdict{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    margin-top:-22px;padding:26px;box-shadow:0 8px 30px rgba(12,16,32,.08);position:relative}
+  .verdict-top{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .score-dial{--v:0;flex:0 0 auto;width:132px;height:132px;border-radius:50%;
+    display:grid;place-items:center;position:relative}
+  .score-dial::before{content:"";position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(var(--dial) calc(var(--v)*1%), var(--panel-2) 0)}
+  .score-dial::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--paper)}
+  .score-num{position:relative;text-align:center}
+  .score-num b{font-family:"Space Grotesk";font-size:40px;display:block;line-height:1}
+  .score-num small{color:var(--muted);font-size:12px}
+  .verdict-head{flex:1;min-width:240px}
+  .band{display:inline-block;font:600 12px/1 "Space Grotesk";letter-spacing:.06em;
+    text-transform:uppercase;padding:6px 11px;border-radius:999px;margin-bottom:8px}
+  .band.critical{background:var(--fail-bg);color:var(--fail)}
+  .band.at-risk{background:var(--warn-bg);color:var(--warn)}
+  .band.healthy{background:var(--pass-bg);color:var(--pass)}
+  .verdict-head h2{font-size:23px;margin:2px 0 6px}
+  .verdict-head p{margin:0;color:var(--muted);font-size:14px}
+  .dial-critical{--dial:var(--fail)} .dial-at-risk{--dial:var(--warn)} .dial-healthy{--dial:var(--pass)}
+
+  /* score breakdown bars */
+  .breakdown{margin-top:22px;display:grid;gap:12px}
+  .bd-row{display:grid;grid-template-columns:200px 1fr 74px;align-items:center;gap:14px}
+  .bd-row .lbl{font-size:13px;font-weight:600}
+  .bd-row .lbl small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+  .track{height:9px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .fill{height:100%;border-radius:99px}
+  .fill.visibility{background:#4f46e5}.fill.accessibility{background:#0ea5e9}.fill.citability{background:#8b5cf6}
+  .bd-row .pts{text-align:right;font:600 13px "JetBrains Mono";color:var(--text)}
+  .bd-row .pts small{color:var(--muted);font-weight:400}
+
+  section{margin:30px 0}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .sec-head .n{font:600 13px "JetBrains Mono";color:var(--accent);
+    border:1px solid var(--line);border-radius:7px;padding:2px 8px;background:var(--paper)}
+  .sec-head h2{font-size:20px;margin:0}
+  .sec-sub{color:var(--muted);font-size:14px;margin:2px 0 16px 0}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden}
+  .card + .card{margin-top:12px}
+
+  /* probe evidence */
+  .probe{padding:16px 18px}
+  .probe + .probe{border-top:1px solid var(--line)}
+  .q{display:flex;gap:10px;align-items:flex-start}
+  .q .qtext{font-weight:600;font-size:15px;flex:1}
+  .pill{flex:0 0 auto;font:600 11px "Space Grotesk";letter-spacing:.04em;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .pill.no{background:var(--fail-bg);color:var(--fail)}
+  .pill.yes{background:var(--pass-bg);color:var(--pass)}
+  .answer{margin:9px 0 0;font-size:13.5px;color:#3a3f4b;background:var(--panel);
+    border-left:3px solid var(--line);padding:9px 12px;border-radius:0 8px 8px 0}
+  .chips{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chips .k{font-size:11px;color:var(--muted);margin-right:2px}
+  .chip{font:500 12px "JetBrains Mono";background:var(--ink);color:#fff;padding:3px 8px;border-radius:6px}
+  .chip.you{background:var(--pass);}
+  .chip.comp{background:#fff;color:var(--text);border:1px solid var(--line)}
+
+  /* fix table */
+  .fixes{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .fix{padding:16px 18px;border-top:1px solid var(--line)}
+  .fix:first-child{border-top:none}
+  .fix-head{display:flex;gap:12px;align-items:flex-start}
+  .rank{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;
+    display:grid;place-items:center;font:600 13px "Space Grotesk"}
+  .fix-title{flex:1;font-weight:600;font-size:15px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .tag{font:500 11px "Space Grotesk";letter-spacing:.03em;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+  .tag.imp-3{color:var(--fail);border-color:#f4c4c0;background:var(--fail-bg)}
+  .tag.imp-2{color:var(--warn);border-color:#f2d9a8;background:var(--warn-bg)}
+  .fix-why{margin:9px 0 0;font-size:13.5px;color:#3a3f4b}
+  .fix-do{margin:8px 0 0;font-size:13.5px}
+  pre.code{position:relative;margin:10px 0 0;background:var(--ink);color:#e7ebf5;
+    border-radius:10px;padding:13px 14px;overflow:auto;font-size:12.5px;line-height:1.5}
+  pre.code .cp{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.1);color:#cfd6ea;
+    border:none;border-radius:6px;padding:4px 9px;font:500 11px "Space Grotesk";cursor:pointer}
+  pre.code .cp:hover{background:rgba(255,255,255,.2)}
+
+  /* diagnostics */
+  .diag{padding:15px 18px}
+  .diag + .diag{border-top:1px solid var(--line)}
+  .diag-head{display:flex;gap:10px;align-items:center}
+  .badge{flex:0 0 auto;width:9px;height:9px;border-radius:50%}
+  .badge.fail{background:var(--fail)}.badge.warn{background:var(--warn)}
+  .badge.pass{background:var(--pass)}.badge.info{background:var(--info)}
+  .diag-title{font-weight:600;font-size:14.5px;flex:1}
+  .st{font:600 11px "Space Grotesk";padding:2px 8px;border-radius:6px}
+  .st.fail{background:var(--fail-bg);color:var(--fail)}.st.warn{background:var(--warn-bg);color:var(--warn)}
+  .st.pass{background:var(--pass-bg);color:var(--pass)}.st.info{background:var(--info-bg);color:var(--info)}
+  .ev{margin:8px 0 0;font-size:13px;color:#3a3f4b;background:var(--panel);padding:8px 11px;border-radius:8px}
+  .ev .k{font:600 10px "Space Grotesk";letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+  .why{margin:7px 0 0;font-size:13px;color:var(--muted)}
+
+  .notes{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:16px 18px;font-size:12.5px;color:var(--muted)}
+  .notes h3{font-size:13px;color:var(--text);margin:0 0 8px}
+  .notes li{margin:4px 0}
+  footer{padding:30px 0 60px;color:var(--muted);font-size:12px;text-align:center}
+  .tabnav{display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap}
+  @media(max-width:640px){
+    .bd-row{grid-template-columns:1fr;gap:6px}.bd-row .pts{text-align:left}
+    .verdict-top{gap:16px}.score-dial{width:104px;height:104px}.score-num b{font-size:32px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>GEO Auditor · AI Search Visibility Report</div>
+    <h1>Warby Parker</h1>
+    <div class="url">https://www.warbyparker.com</div>
+    <div class="meta">
+      <span>◆ eyewear store</span>
+      <span>Engine: openai + live web search</span>
+      <span>06 Aug 2026, 19:57</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  
+  <div class="verdict">
+    <div class="verdict-top">
+      <div class="score-dial dial-healthy" style="--v:92">
+        <div class="score-num"><b>92</b><small>/ 100</small></div>
+      </div>
+      <div class="verdict-head">
+        <span class="band healthy">Visible, with room to grow</span>
+        
+        
+        
+          <h2>You appeared in 7 of 8 AI answers your customers would ask</h2>
+          <p>This is what a customer using ChatGPT or Perplexity sees when they look for what you do — today.</p>
+        
+      </div>
+    </div>
+
+    <div class="breakdown">
+      
+      <div class="bd-row">
+        <div class="lbl">AI Visibility (Share of Voice)<small>Do you actually appear when customers ask AI engines about your category?</small></div>
+        <div class="track"><div class="fill visibility" style="width:88.0%"></div></div>
+        <div class="pts">43.8<small> / 50</small></div>
+      </div>
+      
+      <div class="bd-row">
+        <div class="lbl">Machine Accessibility<small>Can AI engines reach, read, and identify this business?</small></div>
+        <div class="track"><div class="fill accessibility" style="width:100.0%"></div></div>
+        <div class="pts">25.0<small> / 25</small></div>
+      </div>
+      
+      <div class="bd-row">
+        <div class="lbl">Content Citability<small>If an AI can read you, is your content the kind it quotes? (Signals per Princeton GEO, KDD 2024.)</small></div>
+        <div class="track"><div class="fill citability" style="width:92.0%"></div></div>
+        <div class="pts">22.9<small> / 25</small></div>
+      </div>
+      
+    </div>
+    <div class="tabnav">
+      <a class="tag" href="#evidence">↓ The evidence</a>
+      <a class="tag" href="#fixes">↓ Fix plan</a>
+      <a class="tag" href="#diagnostics">↓ Full diagnostics</a>
+    </div>
+  </div>
+
+  
+  <section id="evidence">
+    <div class="sec-head"><span class="n">01</span><h2>What AI actually says about your category</h2></div>
+    <p class="sec-sub">We asked 8 questions a real customer would type — never naming you — and recorded whether you showed up and who did.</p>
+    
+    <div class="card">
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">best affordable eyewear store online</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“If you&#39;re seeking affordable eyewear online, here are some top options to consider:   [ETQ Amsterdam | LinkedIn](https://nl.linkedin.com/company/etq-amsterdam?utm_source=openai) **LensTrove**   Offers complete pairs of prescription glasses starting at $21.98, including all standard coatings (anti-reflective,…”</p>
+        <div class="chips">
+          <span class="k">cited you:</span>
+            <span class="chip you">https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai</span>
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">lenstrove.com</span><span class="chip comp">zennioptical.com</span><span class="chip comp">digitalcommerce.com</span><span class="chip comp">onlineglassesreview.com</span><span class="chip comp">gq.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">where can i buy stylish eyeglasses with free shipping</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“If you&#39;re looking to purchase stylish eyeglasses with free shipping, here are several reputable online retailers to consider:   [Leading Online Optical Retailer GlassesUSA.com Announces Major Savings with Early Black Friday Access Deals Starting Now, Continuing Throughout the Holiday Season –…”</p>
+        <div class="chips">
+          <span class="k">cited you:</span>
+            <span class="chip you">https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai</span><span class="chip you">https://www.warbyparker.com/eyeglasses?utm_source=openai</span>
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">glassesusa.press</span><span class="chip comp">optically.co</span><span class="chip comp">framesdirect.com</span><span class="chip comp">clark.com</span><span class="chip comp">bestbuyeyeglasses.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">how to order prescription sunglasses online</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“Ordering prescription sunglasses online is a convenient way to access a wide variety of styles and lens options. Here&#39;s a step-by-step guide to help you through the process:  1. **Obtain a Current Prescription**: Ensure you have an up-to-date eyeglass prescription from a licensed optometrist or ophthalmologist.…”</p>
+        <div class="chips">
+          <span class="k">cited you:</span>
+            <span class="chip you">https://www.warbyparker.com/learn/prescription-sunglasses-online-a-simple-guide-to-ordering?utm_source=openai</span>
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">framesdirect.com</span><span class="chip comp">boringmagazine.org</span><span class="chip comp">lensdirect.com</span><span class="chip comp">glasses.com</span><span class="chip comp">rimloo.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">affordable contact lenses with insurance accepted</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“If you&#39;re seeking affordable contact lenses that accept insurance, here are several options to consider:  **1. ContactsDirect**  ContactsDirect is an in-network provider for many vision insurance plans, including EyeMed and Anthem. They offer a wide selection of contact lenses and apply your insurance benefits…”</p>
+        <div class="chips">
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">contactsdirect.com</span><span class="chip comp">healthline.com</span><span class="chip comp">pearlevision.com</span><span class="chip comp">edgeopticseyewear.com</span><span class="chip comp">vurvhealth.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">which online eyewear store offers virtual try-on</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“Several online eyewear retailers offer virtual try-on features to help you visualize how different frames will look on your face:  - **Eyebrowse**: Provides a virtual try-on tool that works directly in your browser without the need for downloads or apps. ([eyebrowse.app](https://www.eyebrowse.app/?utm_source=openai)) …”</p>
+        <div class="chips">
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">eyebrowse.app</span><span class="chip comp">glassesusa.com</span><span class="chip comp">visioncenter.org</span><span class="chip comp">zennioptical.com</span><span class="chip comp">fashioneyewear.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">best place to buy eyeglasses with free returns</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“When purchasing eyeglasses online, it&#39;s essential to consider retailers that offer free returns to ensure a risk-free shopping experience. Here are some top options:   [Welty Eyeglasses in Jet Black  | Warby Parker](https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai) **Warby Parker**  …”</p>
+        <div class="chips">
+          <span class="k">cited you:</span>
+            <span class="chip you">https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai</span>
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">gq.com</span><span class="chip comp">onlineglassesreview.com</span><span class="chip comp">oureyeglassworld.com</span><span class="chip comp">eyebuydirect.com</span><span class="chip comp">nbcnews.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">are there eyewear stores that donate a pair for each purchase</div>
+          <span class="pill yes">You appeared</span>
+          
+        </div>
+        <p class="answer">“Yes, several eyewear companies operate programs where they donate a pair of glasses for each purchase made. Here are some notable examples:   [Welty Eyeglasses in Jet Black  | Warby Parker](https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai) **Warby Parker**   Through their &#39;Buy a…”</p>
+        <div class="chips">
+          <span class="k">cited you:</span>
+            <span class="chip you">https://www.warbyparker.com/eyeglasses/welty/jet-black/similar-to?utm_source=openai</span>
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">businesswire.com</span><span class="chip comp">ebay.com</span><span class="chip comp">prnewswire.com</span><span class="chip comp">blueplaneteyewear.com</span><span class="chip comp">swooneyewear.com</span>
+          
+          
+        </div>
+      </div>
+      
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">what&#39;s a good online store for designer eyeglasses under $100</div>
+          <span class="pill no">Not mentioned</span>
+        </div>
+        <p class="answer">“If you&#39;re looking for designer eyeglasses under $100, here are some reputable online retailers to consider:   [How to Order Your Eyeglasses From Goggles4U](https://ca.goggles4u.com/ca_en/order_guide?utm_source=openai) **Goggles4u**   Offers a wide selection of designer eyewear starting from $39.99, featuring brands…”</p>
+        <div class="chips">
+          
+          <span class="k">cited instead:</span>
+            <span class="chip comp">goggles4u.com</span><span class="chip comp">glassesshop.com</span><span class="chip comp">framesbuy.com.au</span><span class="chip comp">framesbuy.com</span><span class="chip comp">yesglasses.com</span>
+          
+          
+        </div>
+      </div>
+      
+    </div>
+    
+  </section>
+
+  
+  <section id="fixes">
+    <div class="sec-head"><span class="n">02</span><h2>Your fix plan, in order</h2></div>
+    <p class="sec-sub">Ranked by impact ÷ effort — do these top-down. The ones at the top are the cheapest, biggest wins.</p>
+    <div class="fixes">
+      
+      <div class="fix">
+        <div class="fix-head">
+          <div class="rank">1</div>
+          <div class="fix-title">No quotations found
+            <div class="tags">
+              <span class="tag imp-1">Impact: Low</span>
+              <span class="tag">Effort: Moderate</span>
+            </div>
+          </div>
+        </div>
+        <p class="fix-why">Quotes from named experts/clients are a proven citation booster and add trust.</p>
+        <p class="fix-do"><b>Do this:</b> Add 1–2 short, attributed quotes (a client result, an expert take) to key pages.</p>
+        
+      </div>
+      
+      
+    </div>
+  </section>
+
+  
+  <section id="diagnostics">
+    <div class="sec-head"><span class="n">03</span><h2>Full diagnostics</h2></div>
+    <p class="sec-sub">Every check, with the exact evidence behind it.</p>
+    
+    
+    
+    
+    <h3 style="font-size:15px;margin:18px 0 8px">Machine Accessibility — 25.0/25</h3>
+    <div class="card">
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">AI crawlers are allowed in robots.txt</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>No blanket Disallow found for GPTBot, OAI-SearchBot, ChatGPT-User, ClaudeBot, Claude-SearchBot, PerplexityBot, Google-Extended at https://www.warbyparker.com/robots.txt.</div>
+        <p class="why">The major AI engines can physically reach your pages.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Readable content is present in the raw HTML</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>538 words of text are in the server HTML before any JavaScript runs.</div>
+        <p class="why">AI crawlers can actually read what your business does.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Complete Organization schema found</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>Organization schema present with name, description, url and sameAs.</div>
+        <p class="why">AI engines can clearly identify your business as an entity.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">llms.txt is present</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>https://www.warbyparker.com/llms.txt exists (191 words).</div>
+        <p class="why">You give AI models a curated map of your best content. Early-mover signal.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Sitemap is discoverable</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>Found a sitemap (via robots.txt directive or /sitemap.xml).</div>
+        <p class="why">Crawlers can find all your pages, not just the ones they stumble on.</p>
+        
+      </div>
+      
+    </div>
+    
+    
+    
+    <h3 style="font-size:15px;margin:18px 0 8px">Content Citability — 22.9/25</h3>
+    <div class="card">
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Content carries concrete statistics (55 found)</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>Examples on your pages: &#34;25%&#34;, &#34;$95&#34;, &#34;25%&#34;, &#34;25%&#34;, &#34;$95&#34;</div>
+        <p class="why">Specific numbers are one of the strongest AI-citation signals (Princeton GEO, KDD 2024: +30–40%).</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Content cites credible external sources (1)</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>e.g. https://warbyparkerfoundation.org</div>
+        <p class="why">Citing credible sources makes your own content read as verified — a top-3 GEO signal.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge warn"></span>
+          <span class="diag-title">No quotations found</span>
+          <span class="st warn">Needs work</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>No quoted expert statements or testimonials detected in the page text.</div>
+        <p class="why">Quotes from named experts/clients are a proven citation booster and add trust.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge pass"></span>
+          <span class="diag-title">Question-and-answer content present</span>
+          <span class="st pass">Good</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>Found FAQ schema or a Q&amp;A structure on your pages.</div>
+        <p class="why">AI engines lift self-contained answers to specific questions. Q&amp;A blocks are prime citation fodder.</p>
+        
+      </div>
+      
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge info"></span>
+          <span class="diag-title">No visible freshness/date signal</span>
+          <span class="st info">Note</span>
+        </div>
+        <div class="ev"><span class="k">Evidence</span>No dateModified / updated-time metadata found on the pages checked.</div>
+        <p class="why">A visible &#39;last updated&#39; date is a small, easy freshness signal for AI engines.</p>
+        
+      </div>
+      
+    </div>
+    
+    
+  </section>
+
+  
+  <section>
+    <div class="notes">
+      <h3>Method &amp; honesty log</h3>
+      <ul>
+        <li><b>Scoring:</b> AI Visibility 50 + Machine Accessibility 25 + Content Citability 25 = 100. Each check’s bar shows the share of points earned.</li>
+        <li><b>Visibility</b> is measured live: openai with web search, standing in for a consumer AI engine. Real ChatGPT/Perplexity/Gemini answers vary run to run.</li>
+        <li><b>Citability signals</b> (statistics, source citations, quotations) are the tactics the Princeton GEO study (Aggarwal et al., KDD 2024) found lift AI-answer visibility by 30–40%.</li>
+        <li>Visibility measured with openai + live web search as a stand-in for a consumer AI engine. AI answers vary run to run; treat share-of-voice as a strong signal, not a fixed number.</li>
+      </ul>
+    </div>
+  </section>
+</div>
+
+<footer>Generated by GEO Auditor · Report is the product.</footer>
+
+<script>
+function cp(btn){
+  var code = btn.parentElement.querySelector('code').innerText;
+  navigator.clipboard.writeText(code).then(function(){
+    var t = btn.innerText; btn.innerText = 'Copied'; setTimeout(function(){btn.innerText=t;},1400);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GEO Audit — {{ r.business_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0c1020; --ink-2:#151a2e; --paper:#ffffff; --panel:#f6f7f9; --panel-2:#eef1f5;
+    --line:#e2e6ee; --text:#1a1d26; --muted:#6b7280; --accent:#4f46e5;
+    --fail:#d92d20; --warn:#dc6803; --pass:#039855; --info:#3b6fd4;
+    --fail-bg:#fef3f2; --warn-bg:#fffaeb; --pass-bg:#ecfdf3; --info-bg:#eff4ff;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--panel);color:var(--text);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:940px;margin:0 auto;padding:0 20px}
+  h1,h2,h3{font-family:"Space Grotesk",Inter,sans-serif;letter-spacing:-0.01em;line-height:1.15}
+  code,pre,.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace}
+  a{color:var(--accent);text-decoration:none}
+
+  /* Header */
+  header{background:var(--ink);color:#fff;padding:34px 0 30px;
+    background-image:radial-gradient(60% 120% at 100% 0,#1c2545 0,transparent 60%)}
+  .eyebrow{font:600 12px/1 "Space Grotesk";letter-spacing:.16em;text-transform:uppercase;
+    color:#8ea2ff;display:flex;align-items:center;gap:8px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:#8ea2ff;
+    box-shadow:0 0 0 4px rgba(142,162,255,.18)}
+  header h1{font-size:30px;margin:14px 0 4px;color:#fff}
+  header .url{color:#aeb6c8;font-size:14px}
+  .meta{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .meta span{font-size:12px;color:#c7cede;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1);padding:5px 10px;border-radius:999px}
+
+  /* Verdict */
+  .verdict{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);
+    margin-top:-22px;padding:26px;box-shadow:0 8px 30px rgba(12,16,32,.08);position:relative}
+  .verdict-top{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+  .score-dial{--v:0;flex:0 0 auto;width:132px;height:132px;border-radius:50%;
+    display:grid;place-items:center;position:relative}
+  .score-dial::before{content:"";position:absolute;inset:0;border-radius:50%;
+    background:conic-gradient(var(--dial) calc(var(--v)*1%), var(--panel-2) 0)}
+  .score-dial::after{content:"";position:absolute;inset:11px;border-radius:50%;background:var(--paper)}
+  .score-num{position:relative;text-align:center}
+  .score-num b{font-family:"Space Grotesk";font-size:40px;display:block;line-height:1}
+  .score-num small{color:var(--muted);font-size:12px}
+  .verdict-head{flex:1;min-width:240px}
+  .band{display:inline-block;font:600 12px/1 "Space Grotesk";letter-spacing:.06em;
+    text-transform:uppercase;padding:6px 11px;border-radius:999px;margin-bottom:8px}
+  .band.critical{background:var(--fail-bg);color:var(--fail)}
+  .band.at-risk{background:var(--warn-bg);color:var(--warn)}
+  .band.healthy{background:var(--pass-bg);color:var(--pass)}
+  .verdict-head h2{font-size:23px;margin:2px 0 6px}
+  .verdict-head p{margin:0;color:var(--muted);font-size:14px}
+  .dial-critical{--dial:var(--fail)} .dial-at-risk{--dial:var(--warn)} .dial-healthy{--dial:var(--pass)}
+
+  /* score breakdown bars */
+  .breakdown{margin-top:22px;display:grid;gap:12px}
+  .bd-row{display:grid;grid-template-columns:200px 1fr 74px;align-items:center;gap:14px}
+  .bd-row .lbl{font-size:13px;font-weight:600}
+  .bd-row .lbl small{display:block;font-weight:400;color:var(--muted);font-size:11px}
+  .track{height:9px;background:var(--panel-2);border-radius:99px;overflow:hidden}
+  .fill{height:100%;border-radius:99px}
+  .fill.visibility{background:#4f46e5}.fill.accessibility{background:#0ea5e9}.fill.citability{background:#8b5cf6}
+  .bd-row .pts{text-align:right;font:600 13px "JetBrains Mono";color:var(--text)}
+  .bd-row .pts small{color:var(--muted);font-weight:400}
+
+  section{margin:30px 0}
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .sec-head .n{font:600 13px "JetBrains Mono";color:var(--accent);
+    border:1px solid var(--line);border-radius:7px;padding:2px 8px;background:var(--paper)}
+  .sec-head h2{font-size:20px;margin:0}
+  .sec-sub{color:var(--muted);font-size:14px;margin:2px 0 16px 0}
+
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:0;overflow:hidden}
+  .card + .card{margin-top:12px}
+
+  /* probe evidence */
+  .probe{padding:16px 18px}
+  .probe + .probe{border-top:1px solid var(--line)}
+  .q{display:flex;gap:10px;align-items:flex-start}
+  .q .qtext{font-weight:600;font-size:15px;flex:1}
+  .pill{flex:0 0 auto;font:600 11px "Space Grotesk";letter-spacing:.04em;padding:4px 9px;border-radius:999px;white-space:nowrap}
+  .pill.no{background:var(--fail-bg);color:var(--fail)}
+  .pill.yes{background:var(--pass-bg);color:var(--pass)}
+  .answer{margin:9px 0 0;font-size:13.5px;color:#3a3f4b;background:var(--panel);
+    border-left:3px solid var(--line);padding:9px 12px;border-radius:0 8px 8px 0}
+  .chips{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .chips .k{font-size:11px;color:var(--muted);margin-right:2px}
+  .chip{font:500 12px "JetBrains Mono";background:var(--ink);color:#fff;padding:3px 8px;border-radius:6px}
+  .chip.you{background:var(--pass);}
+  .chip.comp{background:#fff;color:var(--text);border:1px solid var(--line)}
+
+  /* fix table */
+  .fixes{background:var(--paper);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .fix{padding:16px 18px;border-top:1px solid var(--line)}
+  .fix:first-child{border-top:none}
+  .fix-head{display:flex;gap:12px;align-items:flex-start}
+  .rank{flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:var(--ink);color:#fff;
+    display:grid;place-items:center;font:600 13px "Space Grotesk"}
+  .fix-title{flex:1;font-weight:600;font-size:15px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+  .tag{font:500 11px "Space Grotesk";letter-spacing:.03em;padding:3px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+  .tag.imp-3{color:var(--fail);border-color:#f4c4c0;background:var(--fail-bg)}
+  .tag.imp-2{color:var(--warn);border-color:#f2d9a8;background:var(--warn-bg)}
+  .fix-why{margin:9px 0 0;font-size:13.5px;color:#3a3f4b}
+  .fix-do{margin:8px 0 0;font-size:13.5px}
+  pre.code{position:relative;margin:10px 0 0;background:var(--ink);color:#e7ebf5;
+    border-radius:10px;padding:13px 14px;overflow:auto;font-size:12.5px;line-height:1.5}
+  pre.code .cp{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.1);color:#cfd6ea;
+    border:none;border-radius:6px;padding:4px 9px;font:500 11px "Space Grotesk";cursor:pointer}
+  pre.code .cp:hover{background:rgba(255,255,255,.2)}
+
+  /* diagnostics */
+  .diag{padding:15px 18px}
+  .diag + .diag{border-top:1px solid var(--line)}
+  .diag-head{display:flex;gap:10px;align-items:center}
+  .badge{flex:0 0 auto;width:9px;height:9px;border-radius:50%}
+  .badge.fail{background:var(--fail)}.badge.warn{background:var(--warn)}
+  .badge.pass{background:var(--pass)}.badge.info{background:var(--info)}
+  .diag-title{font-weight:600;font-size:14.5px;flex:1}
+  .st{font:600 11px "Space Grotesk";padding:2px 8px;border-radius:6px}
+  .st.fail{background:var(--fail-bg);color:var(--fail)}.st.warn{background:var(--warn-bg);color:var(--warn)}
+  .st.pass{background:var(--pass-bg);color:var(--pass)}.st.info{background:var(--info-bg);color:var(--info)}
+  .ev{margin:8px 0 0;font-size:13px;color:#3a3f4b;background:var(--panel);padding:8px 11px;border-radius:8px}
+  .ev .k{font:600 10px "Space Grotesk";letter-spacing:.1em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:2px}
+  .why{margin:7px 0 0;font-size:13px;color:var(--muted)}
+
+  .notes{background:var(--paper);border:1px dashed var(--line);border-radius:12px;padding:16px 18px;font-size:12.5px;color:var(--muted)}
+  .notes h3{font-size:13px;color:var(--text);margin:0 0 8px}
+  .notes li{margin:4px 0}
+  footer{padding:30px 0 60px;color:var(--muted);font-size:12px;text-align:center}
+  .tabnav{display:flex;gap:8px;margin:14px 0 0;flex-wrap:wrap}
+  @media(max-width:640px){
+    .bd-row{grid-template-columns:1fr;gap:6px}.bd-row .pts{text-align:left}
+    .verdict-top{gap:16px}.score-dial{width:104px;height:104px}.score-num b{font-size:32px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="eyebrow"><span class="dot"></span>GEO Auditor · AI Search Visibility Report</div>
+    <h1>{{ r.business_name }}</h1>
+    <div class="url">{{ r.url }}</div>
+    <div class="meta">
+      {% if r.category_guess %}<span>◆ {{ r.category_guess }}</span>{% endif %}
+      <span>Engine: {{ r.engine_name }} + live web search</span>
+      <span>{{ r.generated_at }}</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  {# ---------------- VERDICT ---------------- #}
+  <div class="verdict">
+    <div class="verdict-top">
+      <div class="score-dial dial-{{ band_class }}" style="--v:{{ r.total_score }}">
+        <div class="score-num"><b>{{ r.total_score }}</b><small>/ 100</small></div>
+      </div>
+      <div class="verdict-head">
+        <span class="band {{ band_class }}">{{ band_text }}</span>
+        {% set vis = r.checks[0] %}
+        {% set sov = (vis.findings|selectattr('id','equalto','share_of_voice')|list) %}
+        {% if sov %}
+          <h2>{{ sov[0].title }}</h2>
+          <p>This is what a customer using ChatGPT or Perplexity sees when they look for what you do — today.</p>
+        {% else %}
+          <h2>AI Search Visibility Audit</h2>
+          <p>How visible this business is inside AI-generated answers, and what to fix first.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="breakdown">
+      {% for c in r.checks %}
+      <div class="bd-row">
+        <div class="lbl">{{ c.label }}<small>{{ c.summary }}</small></div>
+        <div class="track"><div class="fill {{ c.key }}" style="width:{{ (c.score*100)|round }}%"></div></div>
+        <div class="pts">{{ c.points }}<small> / {{ c.weight }}</small></div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="tabnav">
+      <a class="tag" href="#evidence">↓ The evidence</a>
+      <a class="tag" href="#fixes">↓ Fix plan</a>
+      <a class="tag" href="#diagnostics">↓ Full diagnostics</a>
+    </div>
+  </div>
+
+  {# ---------------- EVIDENCE / PROBE ---------------- #}
+  <section id="evidence">
+    <div class="sec-head"><span class="n">01</span><h2>What AI actually says about your category</h2></div>
+    <p class="sec-sub">We asked {{ r.probe_rows|length }} questions a real customer would type — never naming you — and recorded whether you showed up and who did.</p>
+    {% if r.probe_rows %}
+    <div class="card">
+      {% for row in r.probe_rows %}
+      <div class="probe">
+        <div class="q">
+          <div class="qtext">{{ row.query }}</div>
+          {% if row.error %}<span class="pill no">error</span>
+          {% elif row.appeared %}<span class="pill yes">You appeared</span>
+          {% else %}<span class="pill no">Not mentioned</span>{% endif %}
+        </div>
+        {% if row.answer_excerpt %}<p class="answer">“{{ row.answer_excerpt }}”</p>{% endif %}
+        <div class="chips">
+          {% if row.business_citations %}<span class="k">cited you:</span>
+            {% for u in row.business_citations[:2] %}<span class="chip you">{{ u }}</span>{% endfor %}
+          {% endif %}
+          {% if row.competitor_domains %}<span class="k">cited instead:</span>
+            {% for d in row.competitor_domains %}<span class="chip comp">{{ d }}</span>{% endfor %}
+          {% endif %}
+          {% if row.error %}<span class="k">{{ row.error }}</span>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card"><div class="probe"><p class="fix-why">The visibility probe didn’t run — see the notes at the foot of the report.</p></div></div>
+    {% endif %}
+  </section>
+
+  {# ---------------- FIX PLAN ---------------- #}
+  <section id="fixes">
+    <div class="sec-head"><span class="n">02</span><h2>Your fix plan, in order</h2></div>
+    <p class="sec-sub">Ranked by impact ÷ effort — do these top-down. The ones at the top are the cheapest, biggest wins.</p>
+    <div class="fixes">
+      {% for f in r.prioritized_fixes %}
+      <div class="fix">
+        <div class="fix-head">
+          <div class="rank">{{ loop.index }}</div>
+          <div class="fix-title">{{ f.title }}
+            <div class="tags">
+              <span class="tag imp-{{ f.impact }}">Impact: {{ impact_label(f.impact) }}</span>
+              <span class="tag">Effort: {{ effort_label(f.effort) }}</span>
+            </div>
+          </div>
+        </div>
+        {% if f.why_it_matters %}<p class="fix-why">{{ f.why_it_matters }}</p>{% endif %}
+        {% if f.fix %}<p class="fix-do"><b>Do this:</b> {{ f.fix }}</p>{% endif %}
+        {% if f.fix_code %}<pre class="code"><button class="cp" onclick="cp(this)">Copy</button><code>{{ f.fix_code }}</code></pre>{% endif %}
+      </div>
+      {% endfor %}
+      {% if not r.prioritized_fixes %}
+      <div class="fix"><div class="fix-title">No critical issues found — you’re in good shape. Keep your content concrete and your crawlers open.</div></div>
+      {% endif %}
+    </div>
+  </section>
+
+  {# ---------------- DIAGNOSTICS ---------------- #}
+  <section id="diagnostics">
+    <div class="sec-head"><span class="n">03</span><h2>Full diagnostics</h2></div>
+    <p class="sec-sub">Every check, with the exact evidence behind it.</p>
+    {% for c in r.checks %}
+    {% if c.key != 'visibility' %}
+    <h3 style="font-size:15px;margin:18px 0 8px">{{ c.label }} — {{ c.points }}/{{ c.weight }}</h3>
+    <div class="card">
+      {% for f in c.findings %}
+      <div class="diag">
+        <div class="diag-head">
+          <span class="badge {{ f.status }}"></span>
+          <span class="diag-title">{{ f.title }}</span>
+          <span class="st {{ f.status }}">{{ status_label[f.status] }}</span>
+        </div>
+        {% if f.evidence %}<div class="ev"><span class="k">Evidence</span>{{ f.evidence }}</div>{% endif %}
+        {% if f.why_it_matters %}<p class="why">{{ f.why_it_matters }}</p>{% endif %}
+        {% if f.fix_code %}<pre class="code"><button class="cp" onclick="cp(this)">Copy</button><code>{{ f.fix_code }}</code></pre>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </section>
+
+  {# ---------------- NOTES / HONESTY ---------------- #}
+  <section>
+    <div class="notes">
+      <h3>Method &amp; honesty log</h3>
+      <ul>
+        <li><b>Scoring:</b> AI Visibility 50 + Machine Accessibility 25 + Content Citability 25 = 100. Each check’s bar shows the share of points earned.</li>
+        <li><b>Visibility</b> is measured live: {{ r.engine_name }} with web search, standing in for a consumer AI engine. Real ChatGPT/Perplexity/Gemini answers vary run to run.</li>
+        <li><b>Citability signals</b> (statistics, source citations, quotations) are the tactics the Princeton GEO study (Aggarwal et al., KDD 2024) found lift AI-answer visibility by 30–40%.</li>
+        {% for n in r.notes %}<li>{{ n }}</li>{% endfor %}
+      </ul>
+    </div>
+  </section>
+</div>
+
+<footer>Generated by GEO Auditor · Report is the product.</footer>
+
+<script>
+function cp(btn){
+  var code = btn.parentElement.querySelector('code').innerText;
+  navigator.clipboard.writeText(code).then(function(){
+    var t = btn.innerText; btn.innerText = 'Copied'; setTimeout(function(){btn.innerText=t;},1400);
+  });
+}
+</script>
+</body>
+</html>
